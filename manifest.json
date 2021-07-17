@@ -1,0 +1,17 @@
+{
+    "name": "Twitter-ImageExpander",
+    "version": "1.0.0",
+    "manifest_version": 2,
+    "description": "Expand image size in Twitter",
+    "icons": {
+        "128": "128.png"
+    },
+    "content_scripts": [{
+        "matches": [
+            "https://twitter.com/*"
+        ],
+        "js": [
+            "content.js"
+        ]
+    }]
+}
