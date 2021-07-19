@@ -1,4 +1,4 @@
-# Twitter-ImageExpand
+# Twitter-ImageExpander
 [Twitter](https://twitter.com "twitter.com") のツイートの画像サイズをいい感じに調整するChrome拡張  
 |  Before  |  After  |
 | --- | --- |

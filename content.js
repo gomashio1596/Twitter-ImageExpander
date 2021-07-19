@@ -37,7 +37,7 @@ function expand(imageContainer) {
 }
 
 setInterval(function () {
-    let tweets = document.querySelectorAll("section > div > div > div");
+    let tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(4) > div > div > section > div > div > div");
     tweets.forEach(tweet => {
         try {
             if (tweet.getAttribute("expanded") == "true" || !tweet.hasChildNodes()) {
