@@ -1,6 +1,6 @@
 {
     "name": "Twitter-ImageExpander",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "manifest_version": 2,
     "description": "Expand image size in Twitter",
     "icons": {

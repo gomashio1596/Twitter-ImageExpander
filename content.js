@@ -8,6 +8,14 @@ function printStackTrace(e) {
     }
 }
 
+function check(func) {
+    try {
+        return func();
+    } catch (e) {
+        return false;
+    }
+}
+
 function resolveUrl(url) {
     if (url.searchParams.has("name")) {
         url.searchParams.set("name", "medium");
@@ -24,7 +32,7 @@ function expand(imageContainer) {
     }
     let displayImage = imageDummy.children[0];
     let image = imageDummy.children[1];
-    if (!image.complete) {
+    if (image == undefined || !image.complete) {
         return;
     }
     imageDummy.style.margin = null;
@@ -37,7 +45,12 @@ function expand(imageContainer) {
 }
 
 setInterval(function () {
-    let tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(4) > div > div > section > div > div > div");
+    let tweets;
+    if (location.pathname.includes("/status/")) {
+        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > section > div > div > div");
+    } else {
+        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(4) > div > div > section > div > div > div");
+    }
     tweets.forEach(tweet => {
         try {
             if (tweet.getAttribute("expanded") == "true" || !tweet.hasChildNodes()) {
@@ -48,38 +61,61 @@ setInterval(function () {
                 return;
             }
             let fields = tweetContainer.children[1].children[1];
-            if (fields.childElementCount == 4) {
+            if (fields == undefined || (fields.childElementCount == 4 && fields.lastElementChild.getAttribute("role") != "group")) {
                 // プロモーション
                 return;
             }
-            let imageField = fields.children[1];
+            let imageField;
+            if (fields.childElementCount == 4) {
+                // 返信
+                imageField = fields.children[2];
+            } else {
+                // ツイート
+                imageField = fields.children[1];
+            }
             if (!imageField.hasChildNodes()) {
                 return;
             }
-            if (imageField.firstElementChild.childElementCount == 2) {
-                if (imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.tagName == "A") {
+            if (check(() => imageField.firstElementChild.childElementCount == 2)) {
+                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.firstElementChild;
+                if (aOrDiv.tagName == "A") {
                     // 画像付き引用ツイート
-                    let imageContainer = imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
+                    let imageContainer = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
                     if (expand(imageContainer)) {
                         tweet.setAttribute("expanded", "true");
                     }
                 } else {
                     // 複数画像付き引用ツイート
-                    tweet.setAttribute("expanded", "true");
+                    tweet.setAttribute("expanded", "true");  // TODO: 実装する
                 }
-            } else if (imageField.firstElementChild.firstElementChild.firstElementChild.childElementCount == 2) {
+            } else if (check(() => imageField.firstElementChild.lastElementChild.lastElementChild.getAttribute("data-testid") == "card.wrapper")) {
+                // Embed
+            } else if (check(() => [2, 3].includes(imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild.childElementCount))) {
                 // 引用ツイート
-                if (!imageField.firstElementChild.firstElementChild.firstElementChild.children[1].firstElementChild.childElementCount == 3) {
+                if (imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild.childElementCount == 2) {
+                    // 画像無し
                     return;
                 }
-                let imageContainer = imageField.firstElementChild.firstElementChild.firstElementChild.children[1].firstElementChild
-                    .children[2].firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
-                if (expand(imageContainer)) {
-                    tweet.setAttribute("expanded", "true");
+                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.lastElementChild.firstElementChild
+                    .lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
+                if (aOrDiv.tagName == "A") {
+                    // 画像一枚の時
+                    let imageContainer = imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild
+                        .lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
+                    if (expand(imageContainer)) {
+                        tweet.setAttribute("expanded", "true");
+                    }
+                } else {
+                    // 画像複数枚の時
+                    tweet.setAttribute("expanded", "true");  // TODO: 実装する
                 }
-            } else if (imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.hasChildNodes()) {
-                // 画像付きツイート
-                let aOrDiv = imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
+            } else if (check(() => imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild.hasChildNodes())) {
+                // メディア付きツイート
+                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild;
+                if (check(() => imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild.firstElementChild.firstElementChild.getAttribute("data-testid") == "videoPlayer")) {
+                    // 動画
+                    return;
+                }
                 if (aOrDiv.tagName == "A") {
                     // 画像一枚の時
                     let imageContainer = aOrDiv.firstElementChild;
@@ -105,7 +141,7 @@ setInterval(function () {
                                 return;
                             }
                             let image = imageDummy.children[1];
-                            if (!image.complete) {
+                            if (image == undefined || !image.complete) {
                                 return;
                             }
                             width += parseInt(image.naturalWidth);
@@ -125,7 +161,7 @@ setInterval(function () {
                                     return;
                                 }
                                 let image = imageDummy.children[1];
-                                if (!image.complete) {
+                                if (image == undefined || !image.complete) {
                                     return;
                                 }
 
