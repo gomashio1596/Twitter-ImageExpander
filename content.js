@@ -48,8 +48,12 @@ setInterval(function () {
     let tweets;
     if (location.pathname.includes("/status/")) {
         tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > section > div > div > div");
-    } else {
+    } else if (location.pathname.startsWith("/home")) {
         tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(4) > div > div > section > div > div > div");
+    } else if (location.pathname.startsWith("/search")) {
+        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > div > section > div > div > div");
+    } else {
+        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > div > div > section > div > div > div");
     }
     tweets.forEach(tweet => {
         try {
