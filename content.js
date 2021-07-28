@@ -18,7 +18,7 @@ function check(func) {
 
 function resolveUrl(url) {
     if (url.searchParams.has("name")) {
-        url.searchParams.set("name", "medium");
+        url.searchParams.set("name", "orig");
     }
     return `${url.origin}${url.pathname}?${url.searchParams}`;
 }
@@ -32,14 +32,20 @@ function expand(imageContainer) {
     }
     let displayImage = imageDummy.children[0];
     let image = imageDummy.children[1];
-    if (image == undefined || !image.complete) {
+    if (image == undefined) {
         return;
     }
-    imageDummy.style.margin = null;
     let url = new URL(displayImage.style.backgroundImage.substring("url('".length, displayImage.style.backgroundImage.length - "')".length));
     let resolvedUrl = resolveUrl(url);
-    displayImage.style.backgroundImage = `url("${resolvedUrl}")`;
-    image.src = resolvedUrl;
+    if (image.src != resolvedUrl) {
+        displayImage.style.backgroundImage = `url("${resolvedUrl}")`;
+        image.src = resolvedUrl;
+    }
+    if (image.naturalWidth == 0 || image.naturalHeight == 0) {
+        return;
+    }
+
+    imageDummy.style.margin = null;
     imagePadding.style.paddingBottom = `${(image.naturalHeight / image.naturalWidth) * 100}%`;
     return true;
 }
