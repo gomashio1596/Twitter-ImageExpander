@@ -66,7 +66,7 @@ setInterval(function () {
             if (tweet.getAttribute("expanded") == "true" || !tweet.hasChildNodes()) {
                 return;
             }
-            let tweetContainer = tweet.querySelector("div > div > article > div > div > div > div[data-testid=tweet]");
+            let tweetContainer = tweet.querySelector("[data-testid=tweet] > div > div > div > div:nth-child(2)");
             if (tweetContainer == null) {
                 return;
             }
