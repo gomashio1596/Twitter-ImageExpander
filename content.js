@@ -33,7 +33,7 @@ function expand(imageContainer) {
     let displayImage = imageDummy.children[0];
     let image = imageDummy.children[1];
     if (image == undefined) {
-        return;
+        return false;
     }
     let url = new URL(displayImage.style.backgroundImage.substring("url('".length, displayImage.style.backgroundImage.length - "')".length));
     let resolvedUrl = resolveUrl(url);
@@ -42,7 +42,7 @@ function expand(imageContainer) {
         image.src = resolvedUrl;
     }
     if (image.naturalWidth == 0 || image.naturalHeight == 0) {
-        return;
+        return false;
     }
 
     imageDummy.style.margin = null;
@@ -50,16 +50,97 @@ function expand(imageContainer) {
     return true;
 }
 
+function expandMultiple(imageContainer) {
+    const marginSize = 4;
+    let imagePadding = imageContainer.previousElementSibling;
+    
+    let imageAs = [];
+    let imageColumns = Array.from(imageContainer.lastElementChild.children);
+    let maxChildCount = imageColumns.reduce((a, b) => Math.max(a.childElementCount, b.childElementCount));
+    for (let i = 0; i < maxChildCount; i++) {
+        imageColumns.forEach(imageColumn => {
+            if (imageColumn.querySelectorAll("a")[i] != undefined) {
+                imageAs.push(imageColumn.querySelectorAll("a")[i]);
+            }
+        });
+    }
+
+    let flag = false;
+    imageAs.forEach(imageA => {
+        if (!imageA.firstElementChild.hasChildNodes()) {
+            // 読み込み中
+            flag = true;
+            return;
+        }
+        let imageDummy = imageA.firstElementChild.firstElementChild;
+        imageDummy.style.margin = null;
+        let displayImage = imageDummy.children[0];
+        let image = imageDummy.children[1];
+        let url = new URL(displayImage.style.backgroundImage.substring("url('".length, displayImage.style.backgroundImage.length - "')".length));
+        let resolvedUrl = resolveUrl(url);
+        if (displayImage.style.backgroundImage != `url("${resolvedUrl}")`) {
+            displayImage.style.backgroundImage = `url("${resolvedUrl}")`;
+            image.src = resolvedUrl;
+        }
+    });
+    imageAs.forEach(imageA => {
+        let imageDummy = imageA.firstElementChild.firstElementChild;
+        if (imageDummy == null) {
+            flag = true;
+            return;
+        }
+        let image = imageDummy.children[1];
+        if (!image.complete) {
+            flag = true;
+            return;
+        }
+    });
+    if (flag){
+        return false;
+    }
+
+    let width = 0;
+    imageAs.forEach(imageA => {
+        let image = imageA.firstElementChild.firstElementChild.children[1];
+        if (image.naturalWidth > width) {
+            width = image.naturalWidth;
+        }
+    });
+
+    let height = (imageAs.length - 1) * marginSize;
+    imageAs.forEach(imageA => {
+        let image = imageA.firstElementChild.firstElementChild.children[1];
+        let ratio = width / image.naturalWidth;
+        height += image.naturalHeight * ratio;
+    });
+    imagePadding.style.paddingBottom = `${(height / width) * 100}%`;
+    imageAs.forEach(imageA => {
+        let image = imageA.firstElementChild.firstElementChild.children[1];
+        let ratio = width / image.naturalWidth;
+        imageA.style.height = `${((image.naturalHeight * ratio) / height) * 100}%`;
+        imageA.style.margin = `0 0 ${marginSize}px 0`;
+    });
+    imageAs.slice(-1)[0].style.margin = null;
+
+    let parent = imageColumns[0];
+    while (parent.firstChild) {
+        parent.removeChild(parent.lastChild);
+    }
+    imageColumns.slice(1).forEach(imageColumn => {
+        imageColumn.style.display = "none";
+    });
+    imageAs.forEach(imageA => {
+        parent.appendChild(imageA);
+    });
+    return true;
+}
+
 setInterval(function () {
     let tweets;
-    if (location.pathname.includes("/status/")) {
-        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > section > div > div > div");
-    } else if (location.pathname.startsWith("/home")) {
-        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(4) > div > div > section > div > div > div");
-    } else if (location.pathname.startsWith("/search")) {
-        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > div > section > div > div > div");
+    if (location.pathname.startsWith("/i")) {
+        tweets = document.querySelectorAll('section[aria-labelledby^="accessible-list-"][role="region"] > h1[role="heading"] + div > div');
     } else {
-        tweets = document.querySelectorAll("main > div > div > div > div > div > div:nth-child(2) > div > div > div > section > div > div > div");
+        tweets = document.querySelectorAll('section[aria-labelledby^="accessible-list-"][role="region"] > h1[role="heading"] + div > div > div');
     }
     tweets.forEach(tweet => {
         try {
@@ -84,48 +165,18 @@ setInterval(function () {
                 imageField = fields.children[1];
             }
             if (!imageField.hasChildNodes()) {
+                // 画像無し
                 return;
             }
+            if (imageField.querySelector(`[data-testid="videoPlayer"]`) != null) {
+                // 動画
+                return;
+            }
+
             if (check(() => imageField.firstElementChild.childElementCount == 2)) {
-                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.firstElementChild;
-                if (aOrDiv.tagName == "A") {
-                    // 画像付き引用ツイート
-                    let imageContainer = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
-                    if (expand(imageContainer)) {
-                        tweet.setAttribute("expanded", "true");
-                    }
-                } else {
-                    // 複数画像付き引用ツイート
-                    tweet.setAttribute("expanded", "true");  // TODO: 実装する
-                }
-            } else if (check(() => imageField.firstElementChild.lastElementChild.lastElementChild.getAttribute("data-testid") == "card.wrapper")) {
-                // Embed
-            } else if (check(() => [2, 3].includes(imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild.childElementCount))) {
-                // 引用ツイート
-                if (imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild.childElementCount == 2) {
-                    // 画像無し
-                    return;
-                }
-                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.lastElementChild.firstElementChild
-                    .lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
-                if (aOrDiv.tagName == "A") {
-                    // 画像一枚の時
-                    let imageContainer = imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild
-                        .lastElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
-                    if (expand(imageContainer)) {
-                        tweet.setAttribute("expanded", "true");
-                    }
-                } else {
-                    // 画像複数枚の時
-                    tweet.setAttribute("expanded", "true");  // TODO: 実装する
-                }
-            } else if (check(() => imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild.hasChildNodes())) {
-                // メディア付きツイート
-                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild;
-                if (check(() => imageField.firstElementChild.lastElementChild.firstElementChild.firstElementChild.lastElementChild.firstElementChild.firstElementChild.getAttribute("data-testid") == "videoPlayer")) {
-                    // 動画
-                    return;
-                }
+                // 画像付き引用ツイート
+                console.log("画像付き引用ツイート", tweet);
+                let aOrDiv = imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild.lastElementChild;
                 if (aOrDiv.tagName == "A") {
                     // 画像一枚の時
                     let imageContainer = aOrDiv.firstElementChild;
@@ -133,86 +184,50 @@ setInterval(function () {
                         tweet.setAttribute("expanded", "true");
                     }
                 } else {
-                    // 画像複数枚の時 大分スパゲッティ
+                    // 画像複数枚の時
                     let imageContainer = aOrDiv;
-                    let imagePadding = imageContainer.children[0];
-                    let imageAs = [];
-                    let width = 0;
-                    let height = 0;
-                    let rowHeight = 0;
-                    Array.from(imageContainer.children[1].firstElementChild.children).forEach(imageAOrDiv => {
-                        if (imageAOrDiv.tagName == "A") {
-                            // 複数枚ある画像の横に並んでるやつ
-                            imageAs.push(imageAOrDiv);
-
-                            let imageDummy = imageAOrDiv.firstElementChild.firstElementChild;
-                            if (!imageAOrDiv.firstElementChild.hasChildNodes()) {
-                                // 読み込み中
-                                return;
-                            }
-                            let image = imageDummy.children[1];
-                            if (image == undefined || !image.complete) {
-                                return;
-                            }
-                            width += parseInt(image.naturalWidth);
-                            if (parseInt(image.naturalHeight) > rowHeight) {
-                                rowHeight = parseInt(image.naturalHeight);
-                            }
-                        } else {
-                            let columnWidth = 0;
-                            let columnHeight = 0;
-                            Array.from(imageAOrDiv.children).forEach(a => {
-                                // 複数枚ある画像の縦に並んでるやつ
-                                imageAs.push(a);
-
-                                let imageDummy = a.firstElementChild.firstElementChild;
-                                if (!a.firstElementChild.hasChildNodes()) {
-                                    // 読み込み中
-                                    return;
-                                }
-                                let image = imageDummy.children[1];
-                                if (image == undefined || !image.complete) {
-                                    return;
-                                }
-
-                                if (parseInt(image.naturalWidth) > columnWidth) {
-                                    columnWidth = parseInt(image.naturalWidth);
-                                }
-                                columnHeight += parseInt(image.naturalHeight);
-                            });
-                            width += columnWidth;
-                            if (columnHeight > height) {
-                                height = columnHeight;
-                            }
-                        }
-                    });
-                    if (rowHeight > height) {
-                        height = rowHeight;
+                    if (expandMultiple(imageContainer)) {
+                        tweet.setAttribute("expanded", "true");
                     }
-                    imagePadding.style.paddingBottom = `${(height / width) * 100}%`;
-
-                    let flag = true;
-                    imageAs.forEach(imageA => {
-                        let imageDummy = imageA.firstElementChild.firstElementChild;
-                        if (!imageA.firstElementChild.hasChildNodes()) {
-                            // 読み込み中
-                            flag = false
-                            return;
-                        }
-                        let displayImage = imageDummy.children[0];
-                        let image = imageDummy.children[1];
-                        if (!image.complete) {
-                            flag = false
-                            return;
-                        }
-                        imageDummy.style.margin = null;
-                        let url = new URL(displayImage.style.backgroundImage.substring("url('".length, displayImage.style.backgroundImage.length - "')".length));
-                        let resolvedUrl = resolveUrl(url);
-                        displayImage.style.backgroundImage = `url("${resolvedUrl}")`;
-                        image.src = resolvedUrl;
-                        imageA.firstElementChild.style.height = image.naturalHeight.toString();
-                    });
-                    if (flag) {
+                }
+            } else if (check(() => imageField.firstElementChild.firstElementChild.lastElementChild.getAttribute("data-testid") == "card.wrapper")) {
+                // Embed
+            } else if (check(() => [2, 3].includes(imageField.firstElementChild.lastElementChild.firstElementChild.children[1].firstElementChild.childElementCount))) {
+                // 引用ツイート
+                console.log("引用ツイート", tweet);
+                if (imageField.firstElementChild.lastElementChild.firstElementChild.lastElementChild.firstElementChild.childElementCount == 2) {
+                    // 画像無し
+                    return;
+                }
+                let aOrDiv = imageField.firstElementChild.lastElementChild.firstElementChild.lastElementChild.firstElementChild.lastElementChild
+                    .firstElementChild.firstElementChild.firstElementChild.firstElementChild.firstElementChild;
+                if (aOrDiv.tagName == "A") {
+                    // 画像一枚の時
+                    let imageContainer = aOrDiv.firstElementChild;
+                    if (expand(imageContainer)) {
+                        tweet.setAttribute("expanded", "true");
+                    }
+                } else {
+                    // 画像複数枚の時
+                    let imageContainer = aOrDiv;
+                    if (expandMultiple(imageContainer)) {
+                        tweet.setAttribute("expanded", "true");
+                    }
+                }
+            } else if (check(() => imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.lastElementChild.hasChildNodes())) {
+                // メディア付きツイート
+                console.log("メディア付きツイート", tweet);
+                let aOrDiv = imageField.firstElementChild.firstElementChild.firstElementChild.firstElementChild.lastElementChild.lastElementChild;
+                if (aOrDiv.tagName == "A") {
+                    // 画像一枚の時
+                    let imageContainer = aOrDiv.firstElementChild;
+                    if (expand(imageContainer)) {
+                        tweet.setAttribute("expanded", "true");
+                    }
+                } else {
+                    // 画像複数枚の時
+                    let imageContainer = aOrDiv;
+                    if (expandMultiple(imageContainer)) {
                         tweet.setAttribute("expanded", "true");
                     }
                 }
